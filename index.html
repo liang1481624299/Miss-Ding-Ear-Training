@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#242528" />
+    <title>视唱练耳</title>
+  <link rel="manifest" href="/manifest.webmanifest"><style>body{margin:0;background:#242528;}
+#app-startup {
+  box-sizing: border-box;
+  max-width: 38rem;
+  margin: 12vh auto 2rem;
+  padding: 24px;
+  color: #f4f1ea;
+  background: #242528;
+  font:
+    16px/1.6 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  overflow-wrap: break-word;
+}
+#app-startup[hidden],
+#app-startup [hidden] {
+  display: none !important;
+}
+#app-startup h1 {
+  margin: 0 0 16px;
+  font-size: 24px;
+  line-height: 1.4;
+}
+#app-startup p {
+  margin: 12px 0;
+}
+#app-startup summary {
+  padding: 12px 0;
+  cursor: pointer;
+}
+#app-startup pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 13px/1.6 monospace;
+}
+#app-startup button {
+  min-height: 48px;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 12px 20px;
+  border: 1px solid #d3c7ac;
+  border-radius: 8px;
+  color: #242528;
+  background: #eee7d8;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+#app-startup button:focus-visible {
+  outline: 3px solid #8ad5ff;
+  outline-offset: 3px;
+}
+
+#app-release-notice {
+  position: fixed;
+  z-index: 60;
+  right: 16px;
+  bottom: 84px;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  left: 16px;
+  box-sizing: border-box;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 16px 20px;
+  border: 1px solid #a68dcc;
+  border-radius: 14px;
+  background: #303137;
+  color: #f4f1ea;
+  box-shadow: 0 8px 28px #0005;
+  font:
+    14px/1.5 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  overflow-wrap: break-word;
+}
+#app-release-notice[hidden] {
+  display: none !important;
+}
+#app-release-title {
+  font-size: 16px;
+}
+#app-release-notice p {
+  margin: 8px 0 12px;
+}
+#app-release-notice .release-notice-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+#app-release-notice button {
+  min-height: 44px;
+  min-width: 76px;
+  padding: 8px 16px;
+  border: 1px solid #bda3ff;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  font: inherit;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+#app-release-notice #app-release-ack {
+  background: #bda3ff;
+  color: #242528;
+}
+#app-release-notice button:focus-visible {
+  outline: 3px solid #8ad5ff;
+  outline-offset: 3px;
+}
+[data-theme='paper'] #app-release-notice {
+  background: #fffdf8;
+  color: #242528;
+}
+
+.notation-answer .notation-interactive[role='button']:not([aria-label*='擦除']) {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.notation-answer
+  .notation-interactive[data-touch-note-input='true']:not([aria-label*='擦除'])::after {
+  content: '谱面内按住选音，松手填入；谱面外滑动页面。';
+  display: block;
+  padding: 6px 10px 10px;
+  color: #414b46;
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: default;
+}
+</style>
+</head>
+  <body>
+    <div id="root"></div>
+<section id="app-startup" role="status" aria-live="polite" aria-labelledby="app-startup-title">
+  <h1 id="app-startup-title">正在打开视唱练耳</h1>
+  <p id="app-startup-message">首次打开或网络较慢时，可能需要稍等。</p>
+  <details id="app-startup-details" hidden>
+    <summary>错误详情（可截图反馈给老师）</summary>
+    <pre id="app-startup-diagnostic"></pre>
+  </details>
+  <p>重新加载不会清除本机学习记录和录音。请勿使用浏览器的“清除网站数据”。</p>
+  <button id="app-startup-retry" type="button" hidden>重新加载</button>
+  <noscript
+    ><p>
+      浏览器已禁用 JavaScript，应用无法启动。请在浏览器设置中启用 JavaScript 后重新打开。
+    </p></noscript
+  >
+</section>
+
+<aside
+  id="app-release-notice"
+  role="status"
+  aria-live="polite"
+  aria-labelledby="app-release-title"
+  hidden
+>
+  <strong id="app-release-title">应用已更新</strong>
+  <p>已修复录音提交、播放完成判定和离线准备，并改进学习推荐与数据恢复。已有学习记录和录音保留。</p>
+  <div class="release-notice-actions">
+    <button id="app-release-later" type="button">稍后</button>
+    <button id="app-release-ack" type="button">知道了</button>
+  </div>
+</aside>
+
+<script>/* Runs before the application module; never reads or writes student storage. */
+(function () {
+  var panel = document.getElementById('app-startup');
+  var title = document.getElementById('app-startup-title');
+  var message = document.getElementById('app-startup-message');
+  var retry = document.getElementById('app-startup-retry');
+  var details = document.getElementById('app-startup-details');
+  var diagnostic = document.getElementById('app-startup-diagnostic');
+  var root = document.getElementById('root');
+  var finished = false;
+  var failureCode = '';
+
+  function fileName(value) {
+    return String(value || '')
+      .split(/[?#]/)[0]
+      .split('/')
+      .pop()
+      .slice(0, 120);
+  }
+
+  function errorText(error) {
+    if (typeof error === 'string') return error.slice(0, 300);
+    if (!error || typeof error.message !== 'string') return '浏览器未提供具体错误';
+    return (String(error.name || 'Error') + ': ' + error.message).slice(0, 300);
+  }
+
+  function restoringData() {
+    // V1 renders this placeholder before its asynchronous startup has completed.
+    return root.textContent.trim() === '正在恢复本地状态…';
+  }
+
+  function showFailure(reason, code, info) {
+    if (finished) return;
+    if (failureCode && !/_TIMEOUT$/.test(failureCode)) return;
+    failureCode = code;
+    title.textContent = '暂时无法打开视唱练耳';
+    message.textContent = reason;
+    diagnostic.textContent =
+      '诊断版本：v1-2026-10-21-maintenance\n错误编号：' +
+      code +
+      '\n时间：' +
+      new Date().toISOString() +
+      '\n' +
+      info +
+      '\n浏览器：' +
+      navigator.userAgent;
+    details.hidden = false;
+    panel.setAttribute('role', 'alert');
+    retry.hidden = false;
+  }
+
+  function checkReady() {
+    var style = document.getElementById('app-styles');
+    if (!root.firstElementChild || restoringData() || !style || !style.sheet) return;
+    var responsive = document.getElementById('app-responsive');
+    if (responsive && !responsive.sheet) return;
+    finished = true;
+    panel.hidden = true;
+    window.clearTimeout(timeout);
+    window.clearInterval(poll);
+    window.removeEventListener('error', onError, true);
+    window.removeEventListener('unhandledrejection', onRejection);
+  }
+
+  function onError(event) {
+    var target = event.target;
+    if (
+      target &&
+      target !== window &&
+      target.id !== 'app-entry' &&
+      target.id !== 'app-styles' &&
+      target.id !== 'app-responsive'
+    )
+      return;
+    if (target && target.id === 'app-entry') {
+      showFailure(
+        '应用主程序未能加载完成。请重新加载；若反复出现，请展开错误详情并反馈给老师。',
+        'ENTRY_LOAD',
+        '文件：' + fileName(target.src)
+      );
+    } else if (target && (target.id === 'app-styles' || target.id === 'app-responsive')) {
+      showFailure(
+        '页面样式未能加载完成。请重新加载；若反复出现，请展开错误详情并反馈给老师。',
+        target.id === 'app-styles' ? 'STYLE_LOAD' : 'RESPONSIVE_STYLE_LOAD',
+        '文件：' + fileName(target.href)
+      );
+    } else {
+      showFailure(
+        '应用启动时发生了脚本错误。请展开错误详情并截图反馈给老师。',
+        'SCRIPT_ERROR',
+        errorText(event.error || event.message) +
+          '\n位置：' +
+          fileName(event.filename) +
+          ':' +
+          (event.lineno || 0) +
+          ':' +
+          (event.colno || 0)
+      );
+    }
+  }
+
+  function onRejection(event) {
+    showFailure(
+      '应用启动遇到问题。请重新加载；若仍失败，请展开错误详情并反馈给老师。',
+      'STARTUP_REJECTION',
+      errorText(event.reason)
+    );
+  }
+
+  retry.addEventListener('click', function () {
+    // A normal reload preserves IndexedDB, localStorage and recorded audio.
+    window.location.reload();
+  });
+  window.addEventListener('error', onError, true);
+  window.addEventListener('unhandledrejection', onRejection);
+  var timeout = window.setTimeout(function () {
+    // Keep the concrete failure available instead of replacing it with a generic timeout.
+    if (failureCode) return;
+    showFailure(
+      restoringData()
+        ? '恢复本机学习记录的等待时间较长。可以继续等待，或重新加载。请勿清除网站数据，以免丢失本机学习记录和录音。'
+        : '加载时间较长。可以继续等待，或切换网络后重新加载。请勿清除网站数据，以免丢失本机学习记录和录音。',
+      restoringData() ? 'RESTORE_TIMEOUT' : 'LOAD_TIMEOUT',
+      '等待应用启动超过 20 秒；尚未收到具体错误。'
+    );
+  }, 20000);
+  var poll = window.setInterval(checkReady, 200);
+})();
+</script>
+<script>(function(){var n=function(r,e){return function(){try{return e||r((e={exports:{}}).exports,e),e.exports}catch(t){throw e=0,t}}};var wa=n(function(){});var g=n(function(ME,ma){"use strict";ma.exports=function(r){try{return!!r()}catch(e){return!0}}});var ur=n(function(FE,xa){"use strict";var mc=g();xa.exports=!mc(function(){var r=function(){}.bind();return typeof r!="function"||r.hasOwnProperty("prototype")})});var w=n(function(kE,Aa){"use strict";var _a=ur(),Pa=Function.prototype,Pe=Pa.call,xc=_a&&Pa.bind.bind(Pe,Pe);Aa.exports=_a?xc:function(r){return function(){return Pe.apply(r,arguments)}}});var G=n(function(BE,Da){"use strict";var Ca=w(),_c=Ca({}.toString),Pc=Ca("".slice);Da.exports=function(r){return Pc(_c(r),8,-1)}});var Ce=n(function(LE,ja){"use strict";var Ac=w(),Cc=g(),Dc=G(),Ae=Object,jc=Ac("".split);ja.exports=Cc(function(){return!Ae("z").propertyIsEnumerable(0)})?function(r){return Dc(r)==="String"?jc(r,""):Ae(r)}:Ae});var H=n(function(GE,Na){"use strict";Na.exports=function(r){return r==null}});var Lr=n(function(UE,Ma){"use strict";var Nc=H(),Mc=TypeError;Ma.exports=function(r){if(Nc(r))throw new Mc("Can't call method on "+r);return r}});var X=n(function(VE,Fa){"use strict";var Fc=Ce(),kc=Lr();Fa.exports=function(r){return Fc(kc(r))}});var Ba=n(function($E,ka){"use strict";ka.exports=function(){}});var Z=n(function(KE,La){"use strict";La.exports=Object.create?Object.create(null):{}});var O=n(function(De,Ga){"use strict";var sr=function(r){return r&&r.Math===Math&&r};Ga.exports=sr(typeof globalThis=="object"&&globalThis)||sr(typeof window=="object"&&window)||sr(typeof self=="object"&&self)||sr(typeof global=="object"&&global)||sr(typeof De=="object"&&De)||(function(){return this})()||Function("return this")()});var b=n(function(WE,Ua){"use strict";var je=typeof document=="object"&&document.all;Ua.exports=typeof je=="undefined"&&je!==void 0?function(r){return typeof r=="function"||r===je}:function(r){return typeof r=="function"}});var Ka=n(function(zE,$a){"use strict";var Bc=O(),Lc=b(),Va=Bc.WeakMap;$a.exports=Lc(Va)&&/native code/.test(String(Va))});var m=n(function(HE,Wa){"use strict";var Gc=b();Wa.exports=function(r){return typeof r=="object"?r!==null:Gc(r)}});var T=n(function(XE,za){"use strict";var Uc=g();za.exports=!Uc(function(){return Object.defineProperty({},1,{get:function(){return 7}})[1]!==7})});var Me=n(function(YE,Xa){"use strict";var Vc=O(),Ha=m(),Ne=Vc.document,$c=Ha(Ne)&&Ha(Ne.createElement);Xa.exports=function(r){return $c?Ne.createElement(r):{}}});var Fe=n(function(QE,Ya){"use strict";var Kc=T(),Wc=g(),zc=Me();Ya.exports=!Kc&&!Wc(function(){return Object.defineProperty(zc("div"),"a",{get:function(){return 7}}).a!==7})});var ke=n(function(JE,Qa){"use strict";var Hc=T(),Xc=g();Qa.exports=Hc&&Xc(function(){return Object.defineProperty(function(){},"prototype",{value:42,writable:!1}).prototype!==42})});var A=n(function(ZE,Ja){"use strict";var Yc=m(),Qc=String,Jc=TypeError;Ja.exports=function(r){if(Yc(r))return r;throw new Jc(Qc(r)+" is not an object")}});var C=n(function(rg,Za){"use strict";var Zc=ur(),Gr=Function.prototype.call;Za.exports=Zc?Gr.bind(Gr):function(){return Gr.apply(Gr,arguments)}});var Ur=n(function(eg,rn){"use strict";rn.exports={}});var D=n(function(tg,tn){"use strict";var Be=Ur(),Le=O(),rv=b(),en=function(r){return rv(r)?r:void 0};tn.exports=function(r,e){return arguments.length<2?en(Be[r])||en(Le[r]):Be[r]&&Be[r][e]||Le[r]&&Le[r][e]}});var cr=n(function(ag,an){"use strict";var ev=w();an.exports=ev({}.isPrototypeOf)});var Ge=n(function(ng,un){"use strict";var tv=O(),nn=tv.navigator,on=nn&&nn.userAgent;un.exports=on?String(on):""});var Ve=n(function(ig,pn){"use strict";var ln=O(),Ue=Ge(),sn=ln.process,cn=ln.Deno,vn=sn&&sn.versions||cn&&cn.version,fn=vn&&vn.v8,j,Vr;fn&&(j=fn.split("."),Vr=j[0]>0&&j[0]<4?1:+(j[0]+j[1]));!Vr&&Ue&&(j=Ue.match(/Edge\/(\d+)/),(!j||j[1]>=74)&&(j=Ue.match(/Chrome\/(\d+)/),j&&(Vr=+j[1])));pn.exports=Vr});var $e=n(function(og,dn){"use strict";var yn=Ve(),av=g(),nv=O(),iv=nv.String;dn.exports=!!Object.getOwnPropertySymbols&&!av(function(){var r=Symbol("symbol detection");return!iv(r)||!(Object(r)instanceof Symbol)||!Symbol.sham&&yn&&yn<41})});var Ke=n(function(ug,qn){"use strict";var ov=$e();qn.exports=ov&&!Symbol.sham&&typeof Symbol.iterator=="symbol"});var $r=n(function(sg,En){"use strict";var uv=D(),sv=b(),cv=cr(),vv=Ke(),fv=Object;En.exports=vv?function(r){return typeof r=="symbol"}:function(r){var e=uv("Symbol");return sv(e)&&cv(e.prototype,fv(r))}});var Kr=n(function(cg,gn){"use strict";var lv=String;gn.exports=function(r){try{return lv(r)}catch(e){return"Object"}}});var Wr=n(function(vg,hn){"use strict";var pv=b(),yv=Kr(),dv=TypeError;hn.exports=function(r){if(pv(r))return r;throw new dv(yv(r)+" is not a function")}});var zr=n(function(fg,On){"use strict";var qv=Wr(),Ev=H();On.exports=function(r,e){var t=r[e];return Ev(t)?void 0:qv(t)}});var Rn=n(function(lg,bn){"use strict";var We=C(),ze=b(),He=m(),gv=TypeError;bn.exports=function(r,e){var t,a;if(e==="string"&&ze(t=r.toString)&&!He(a=We(t,r))||ze(t=r.valueOf)&&!He(a=We(t,r))||e!=="string"&&ze(t=r.toString)&&!He(a=We(t,r)))return a;throw new gv("Can't convert object to primitive value")}});var U=n(function(pg,Sn){"use strict";Sn.exports=!0});var wn=n(function(yg,Tn){"use strict";var In=O(),hv=Object.defineProperty;Tn.exports=function(r,e){try{hv(In,r,{value:e,configurable:!0,writable:!0})}catch(t){In[r]=e}return e}});var vr=n(function(dg,_n){"use strict";var Ov=U(),bv=O(),Rv=wn(),mn="__core-js_shared__",xn=_n.exports=bv[mn]||Rv(mn,{});(xn.versions||(xn.versions=[])).push({version:"3.50.0",mode:Ov?"pure":"global",copyright:"\xA9 2013\u20132025 Denis Pushkarev (zloirock.ru), 2025\u20132026 CoreJS Company (core-js.io). All rights reserved.",license:"https://github.com/zloirock/core-js/blob/v3.50.0/LICENSE",source:"https://github.com/zloirock/core-js"})});var Xe=n(function(qg,An){"use strict";var Pn=vr(),Sv=Object.create||Object;An.exports=function(r,e){return Pn[r]||(Pn[r]=e||Sv(null))}});var fr=n(function(Eg,Cn){"use strict";var Iv=Lr(),Tv=Object;Cn.exports=function(r){return Tv(Iv(r))}});var x=n(function(gg,Dn){"use strict";var wv=w(),mv=fr(),xv=wv({}.hasOwnProperty);Dn.exports=Object.hasOwn||function(e,t){return xv(mv(e),t)}});var lr=n(function(hg,jn){"use strict";var _v=w(),Pv=0,Av=Math.random(),Cv=_v(1.1.toString);jn.exports=function(r){return"Symbol("+(r===void 0?"":r)+")_"+Cv(++Pv+Av,36)}});var N=n(function(Og,Mn){"use strict";var Dv=O(),jv=Xe(),Nn=x(),Nv=lr(),Mv=$e(),Fv=Ke(),rr=Dv.Symbol,Ye=jv("wks"),kv=Fv?rr.for||rr:rr&&rr.withoutSetter||Nv;Mn.exports=function(r){return Nn(Ye,r)||(Ye[r]=Mv&&Nn(rr,r)?rr[r]:kv("Symbol."+r)),Ye[r]}});var Ln=n(function(bg,Bn){"use strict";var Bv=C(),Fn=m(),kn=$r(),Lv=zr(),Gv=Rn(),Uv=N(),Vv=TypeError,$v=Uv("toPrimitive");Bn.exports=function(r,e){if(!Fn(r)||kn(r))return r;var t=Lv(r,$v),a;if(t){if(e===void 0&&(e="default"),a=Bv(t,r,e),!Fn(a)||kn(a))return a;throw new Vv("Can't convert object to primitive value")}return e===void 0&&(e="number"),Gv(r,e)}});var Qe=n(function(Rg,Gn){"use strict";var Kv=Ln(),Wv=$r();Gn.exports=function(r){var e=Kv(r,"string");return Wv(e)?e:e+""}});var M=n(function(Vn){"use strict";var zv=T(),Hv=Fe(),Xv=ke(),Hr=A(),Un=Qe(),Yv=TypeError,Je=Object.defineProperty,Qv=Object.getOwnPropertyDescriptor,Ze="enumerable",rt="configurable",et="writable";Vn.f=zv?Xv?function(e,t,a){if(Hr(e),t=Un(t),Hr(a),typeof e=="function"&&t==="prototype"&&"value"in a&&et in a&&!a[et]){var o=Qv(e,t);o&&o[et]&&(e[t]=a.value,a={configurable:rt in a?a[rt]:o[rt],enumerable:Ze in a?a[Ze]:o[Ze],writable:!1})}return Je(e,t,a)}:Je:function(e,t,a){if(Hr(e),t=Un(t),Hr(a),Hv)try{return Je(e,t,a)}catch(o){}if("get"in a||"set"in a)throw new Yv("Accessors not supported");return"value"in a&&(e[t]=a.value),e}});var V=n(function(Ig,$n){"use strict";$n.exports=function(r,e){return{enumerable:!(r&1),configurable:!(r&2),writable:!(r&4),value:e}}});var $=n(function(Tg,Kn){"use strict";var Jv=T(),Zv=M(),rf=V();Kn.exports=Jv?function(r,e,t){return Zv.f(r,e,rf(1,t))}:function(r,e,t){return r[e]=t,r}});var Xr=n(function(wg,zn){"use strict";var ef=Xe(),tf=lr(),Wn=ef("keys");zn.exports=function(r){return Wn[r]||(Wn[r]=tf(r))}});var pr=n(function(mg,Hn){"use strict";Hn.exports={}});var dr=n(function(xg,Qn){"use strict";var af=Ka(),Yn=O(),nf=m(),of=$(),tt=x(),at=vr(),uf=Xr(),sf=pr(),Xn="Object already initialized",nt=Yn.TypeError,cf=Yn.WeakMap,Yr,yr,Qr,vf=function(r){return Qr(r)?yr(r):Yr(r,{})},ff=function(r){return function(e){var t;if(!nf(e)||(t=yr(e)).type!==r)throw new nt("Incompatible receiver, "+r+" required");return t}};af||at.state?(F=at.state||(at.state=new cf),F.get=F.get,F.has=F.has,F.set=F.set,Yr=function(r,e){if(F.has(r))throw new nt(Xn);return e.facade=r,F.set(r,e),e},yr=function(r){return F.get(r)||{}},Qr=function(r){return F.has(r)}):(Y=uf("state"),sf[Y]=!0,Yr=function(r,e){if(tt(r,Y))throw new nt(Xn);return e.facade=r,of(r,Y,e),e},yr=function(r){return tt(r,Y)?r[Y]:{}},Qr=function(r){return tt(r,Y)});var F,Y;Qn.exports={set:Yr,get:yr,has:Qr,enforce:vf,getterFor:ff}});var ti=n(function(_g,ei){"use strict";var lf=ur(),ri=Function.prototype,Jn=ri.apply,Zn=ri.call;ei.exports=typeof Reflect=="object"&&Reflect.apply||(lf?Zn.bind(Jn):function(){return Zn.apply(Jn,arguments)})});var it=n(function(Pg,ai){"use strict";var pf=G(),yf=w();ai.exports=function(r){if(pf(r)==="Function")return yf(r)}});var ui=n(function(oi){"use strict";var ni={}.propertyIsEnumerable,ii=Object.getOwnPropertyDescriptor,df=ii&&!ni.call({1:2},1);oi.f=df?function(e){var t=ii(this,e);return!!t&&t.enumerable}:ni});var vi=n(function(ci){"use strict";var qf=T(),Ef=C(),gf=ui(),hf=V(),Of=X(),bf=Qe(),Rf=x(),Sf=Fe(),si=Object.getOwnPropertyDescriptor;ci.f=qf?si:function(e,t){if(e=Of(e),t=bf(t),Sf)try{return si(e,t)}catch(a){}if(Rf(e,t))return hf(!Ef(gf.f,e,t),e[t])}});var li=n(function(Dg,fi){"use strict";var If=g(),Tf=b(),wf=/#|\.prototype\./,qr=function(r,e){var t=xf[mf(r)];return t===Pf?!0:t===_f?!1:Tf(e)?If(e):!!e},mf=qr.normalize=function(r){return String(r).replace(wf,".").toLowerCase()},xf=qr.data={},_f=qr.NATIVE="N",Pf=qr.POLYFILL="P";fi.exports=qr});var Er=n(function(jg,yi){"use strict";var pi=it(),Af=Wr(),Cf=ur(),Df=pi(pi.bind);yi.exports=function(r,e){return Af(r),e===void 0?r:Cf?Df(r,e):function(){return r.apply(e,arguments)}}});var K=n(function(Ng,qi){"use strict";var gr=O(),jf=ti(),Nf=it(),Mf=b(),Ff=vi().f,kf=li(),er=Ur(),Bf=Er(),tr=$(),di=x();vr();var Lf=function(r){var e=function(t,a,o){if(this instanceof e){switch(arguments.length){case 0:return new r;case 1:return new r(t);case 2:return new r(t,a)}return new r(t,a,o)}return jf(r,this,arguments)};return e.prototype=r.prototype,e};qi.exports=function(r,e){var t=r.target,a=r.global,o=r.stat,i=r.proto,u=a?gr:o?gr[t]:gr[t]&&gr[t].prototype,p=a?er:er[t]||tr(er,t,{})[t],y=p.prototype,v,c,f,s,l,d,q,h,E;for(s in e)v=kf(a?s:t+(o?".":"#")+s,r.forced),c=!v&&u&&di(u,s),d=p[s],c&&(r.dontCallGetSet?(E=Ff(u,s),q=E&&E.value):q=u[s]),l=c&&q?q:e[s],!(!v&&!i&&typeof d==typeof l)&&(r.bind&&c?h=Bf(l,gr):r.wrap&&c?h=Lf(l):i&&Mf(l)?h=Nf(l):h=l,(r.sham||l&&l.sham||d&&d.sham)&&tr(h,"sham",!0),tr(p,s,h),i&&(f=t+"Prototype",di(er,f)||tr(er,f,{}),tr(er[f],s,l),r.real&&y&&(v||!y[s])&&tr(y,s,l)))}});var hi=n(function(Mg,gi){"use strict";var ot=T(),Gf=x(),Ei=Function.prototype,Uf=ot&&Object.getOwnPropertyDescriptor,ut=Gf(Ei,"name"),Vf=ut&&function(){}.name==="something",$f=ut&&(!ot||ot&&Uf(Ei,"name").configurable);gi.exports={EXISTS:ut,PROPER:Vf,CONFIGURABLE:$f}});var bi=n(function(Fg,Oi){"use strict";var Kf=Math.ceil,Wf=Math.floor;Oi.exports=Math.trunc||function(e){var t=+e;return(t>0?Wf:Kf)(t)}});var st=n(function(kg,Ri){"use strict";var zf=bi();Ri.exports=function(r){var e=+r;return e!==e||e===0?0:zf(e)}});var Ii=n(function(Bg,Si){"use strict";var Hf=st(),Xf=Math.max,Yf=Math.min;Si.exports=function(r,e){var t=Hf(r);return t<0?Xf(t+e,0):Yf(t,e)}});var wi=n(function(Lg,Ti){"use strict";var Qf=st(),Jf=Math.min;Ti.exports=function(r){var e=Qf(r);return e>0?Jf(e,9007199254740991):0}});var hr=n(function(Gg,mi){"use strict";var Zf=wi();mi.exports=function(r){return Zf(r.length)}});var Pi=n(function(Ug,_i){"use strict";var rl=X(),el=Ii(),tl=hr(),xi=function(r){return function(e,t,a){var o=rl(e),i=tl(o);if(i===0)return!r&&-1;var u=el(a,i),p;if(r&&t!==t){for(;i>u;)if(p=o[u++],p!==p)return!0}else for(;i>u;u++)if((r||u in o)&&o[u]===t)return r||u||0;return!r&&-1}};_i.exports={includes:xi(!0),indexOf:xi(!1)}});var vt=n(function(Vg,Ci){"use strict";var al=w(),ct=x(),nl=X(),il=Pi().indexOf,ol=pr(),Ai=al([].push);Ci.exports=function(r,e){var t=nl(r),a=0,o=[],i;for(i in t)!ct(ol,i)&&ct(t,i)&&Ai(o,i);for(;e.length>a;)ct(t,i=e[a++])&&(~il(o,i)||Ai(o,i));return o}});var Jr=n(function($g,Di){"use strict";Di.exports=["constructor","hasOwnProperty","isPrototypeOf","propertyIsEnumerable","toLocaleString","toString","valueOf"]});var ft=n(function(Kg,ji){"use strict";var ul=vt(),sl=Jr();ji.exports=Object.keys||function(e){return ul(e,sl)}});var Mi=n(function(Ni){"use strict";var cl=T(),vl=ke(),fl=M(),ll=A(),pl=X(),yl=ft();Ni.f=cl&&!vl?Object.defineProperties:function(e,t){ll(e);for(var a=pl(t),o=yl(t),i=o.length,u=0,p;i>u;)fl.f(e,p=o[u++],a[p]);return e}});var ki=n(function(zg,Fi){"use strict";var dl=D();Fi.exports=dl("document","documentElement")});var Or=n(function(Hg,Ki){"use strict";var ql=A(),El=Mi(),Bi=Jr(),gl=pr(),hl=ki(),Ol=Me(),bl=Xr(),Li=">",Gi="<",pt="prototype",yt="script",Vi=bl("IE_PROTO"),lt=function(){},$i=function(r){return Gi+yt+Li+r+Gi+"/"+yt+Li},Ui=function(r){r.write($i("")),r.close();var e=r.parentWindow.Object;return r=null,e},Rl=function(){var r=Ol("iframe"),e="java"+yt+":",t;return r.style.display="none",hl.appendChild(r),r.src=String(e),t=r.contentWindow.document,t.open(),t.write($i("document.F=Object")),t.close(),t.F},Zr,re=function(){try{Zr=new ActiveXObject("htmlfile")}catch(e){}re=typeof document!="undefined"?document.domain&&Zr?Ui(Zr):Rl():Ui(Zr);for(var r=Bi.length;r--;)delete re[pt][Bi[r]];return re()};gl[Vi]=!0;Ki.exports=Object.create||function(e,t){var a;return e!==null?(lt[pt]=ql(e),a=new lt,lt[pt]=null,a[Vi]=e):a=re(),t===void 0?a:El.f(a,t)}});var zi=n(function(Xg,Wi){"use strict";var Sl=g();Wi.exports=!Sl(function(){function r(){}return r.prototype.constructor=null,Object.getPrototypeOf(new r)!==r.prototype})});var qt=n(function(Yg,Xi){"use strict";var Il=x(),Tl=b(),wl=fr(),ml=Xr(),xl=zi(),Hi=ml("IE_PROTO"),dt=Object,_l=dt.prototype;Xi.exports=xl?dt.getPrototypeOf:function(r){var e=wl(r);if(Il(e,Hi))return e[Hi];var t=e.constructor;return Tl(t)&&e instanceof t?t.prototype:e instanceof dt?_l:null}});var br=n(function(Qg,Yi){"use strict";var Pl=$();Yi.exports=function(r,e,t,a){return a&&a.enumerable?r[e]=t:Pl(r,e,t),r}});var Ot=n(function(Jg,Zi){"use strict";var Al=g(),Cl=b(),Dl=m(),jl=Or(),Qi=qt(),Nl=br(),Ml=N(),Fl=U(),ht=Ml("iterator"),Ji=!1,k,Et,gt;[].keys&&(gt=[].keys(),"next"in gt?(Et=Qi(Qi(gt)),Et!==Object.prototype&&(k=Et)):Ji=!0);var kl=!Dl(k)||Al(function(){var r={};return k[ht].call(r)!==r});kl?k={}:Fl&&(k=jl(k));Cl(k[ht])||Nl(k,ht,function(){return this});Zi.exports={IteratorPrototype:k,BUGGY_SAFARI_ITERATORS:Ji}});var ee=n(function(Zg,eo){"use strict";var Bl=N(),Ll=Bl("toStringTag"),ro={};ro[Ll]="z";eo.exports=String(ro)==="[object z]"});var ar=n(function(rh,to){"use strict";var Gl=ee(),Ul=b(),te=G(),Vl=N(),$l=Vl("toStringTag"),Kl=Object,Wl=te((function(){return arguments})())==="Arguments",zl=function(r,e){try{return r[e]}catch(t){}};to.exports=Gl?te:function(r){var e,t,a;return r===void 0?"Undefined":r===null?"Null":typeof(t=zl(e=Kl(r),$l))=="string"?t:Wl?te(e):(a=te(e))==="Object"&&Ul(e.callee)?"Arguments":a}});var no=n(function(eh,ao){"use strict";var Hl=ee(),Xl=ar();ao.exports=Hl?{}.toString:function(){return"[object "+Xl(this)+"]"}});var Rr=n(function(th,oo){"use strict";var Yl=ee(),Ql=M().f,Jl=$(),Zl=x(),rp=no(),ep=N(),io=ep("toStringTag");oo.exports=function(r,e,t,a){var o=t?r:r&&r.prototype;o&&(Zl(o,io)||Ql(o,io,{configurable:!0,value:e}),a&&!Yl&&Jl(o,"toString",rp))}});var so=n(function(ah,uo){"use strict";var tp=Ot().IteratorPrototype,ap=Or(),np=V(),ip=Rr(),op=Z(),up=function(){return this};uo.exports=function(r,e,t,a){var o=e+" Iterator";return r.prototype=ap(tp,{next:np(+!a,t)}),ip(r,o,!1,!0),op[o]=up,r}});var vo=n(function(nh,co){"use strict";var sp=w(),cp=Wr();co.exports=function(r,e,t){try{return sp(cp(Object.getOwnPropertyDescriptor(r,e)[t]))}catch(a){}}});var lo=n(function(ih,fo){"use strict";var vp=m();fo.exports=function(r){return vp(r)||r===null}});var yo=n(function(oh,po){"use strict";var fp=lo(),lp=String,pp=TypeError;po.exports=function(r){if(fp(r))return r;throw new pp("Can't set "+lp(r)+" as a prototype")}});var bt=n(function(uh,qo){"use strict";var yp=vo(),dp=m(),qp=Lr(),Ep=yo();qo.exports=Object.setPrototypeOf||("__proto__"in{}?(function(){var r=!1,e={},t;try{t=yp(Object.prototype,"__proto__","set"),t(e,[]),r=e instanceof Array}catch(a){}return function(o,i){return qp(o),Ep(i),dp(o)&&(r?t(o,i):o.__proto__=i),o}})():void 0)});var St=n(function(sh,wo){"use strict";var gp=K(),hp=C(),ae=U(),Io=hi(),Op=b(),bp=so(),Eo=qt(),go=bt(),Rp=Rr(),Sp=$(),Rt=br(),Ip=N(),ho=Z(),To=Ot(),Tp=Io.PROPER,wp=Io.CONFIGURABLE,Oo=To.IteratorPrototype,ne=To.BUGGY_SAFARI_ITERATORS,Sr=Ip("iterator"),bo="keys",Ir="values",Ro="entries",So=function(){return this};wo.exports=function(r,e,t,a,o,i,u){bp(t,e,a);var p=function(E){if(E===o&&s)return s;if(!ne&&E&&E in c)return c[E];switch(E){case bo:return function(){return new t(this,E)};case Ir:return function(){return new t(this,E)};case Ro:return function(){return new t(this,E)}}return function(){return new t(this)}},y=e+" Iterator",v=!1,c=r.prototype,f=c[Sr]||c["@@iterator"]||o&&c[o],s=!ne&&f||p(o),l=e==="Array"&&c.entries||f,d,q,h;if(l&&(d=Eo(l.call(new r)),d!==Object.prototype&&d.next&&(!ae&&Eo(d)!==Oo&&(go?go(d,Oo):Op(d[Sr])||Rt(d,Sr,So)),Rp(d,y,!0,!0),ae&&(ho[y]=So))),Tp&&o===Ir&&f&&f.name!==Ir&&(!ae&&wp?Sp(c,"name",Ir):(v=!0,s=function(){return hp(f,this)})),o)if(q={values:p(Ir),keys:i?s:p(bo),entries:p(Ro)},u)for(h in q)(ne||v||!(h in c))&&Rt(c,h,q[h]);else gp({target:e,proto:!0,forced:ne||v},q);return(!ae||u)&&c[Sr]!==s&&Rt(c,Sr,s,{name:o}),ho[e]=s,q}});var It=n(function(ch,mo){"use strict";mo.exports=function(r,e){return{value:r,done:e}}});var Do=n(function(vh,Co){"use strict";var mp=X(),Tt=Ba(),xo=Z(),Po=dr(),xp=M().f,_p=St(),ie=It(),Pp=U(),Ap=T(),Ao="Array Iterator",Cp=Po.set,Dp=Po.getterFor(Ao);Co.exports=_p(Array,"Array",function(r,e){Cp(this,{type:Ao,target:mp(r),index:0,kind:e})},function(){var r=Dp(this),e=r.target,t=r.index++;if(!e||t>=e.length)return r.target=null,ie(void 0,!0);switch(r.kind){case"keys":return ie(t,!1);case"values":return ie(e[t],!1)}return ie([t,e[t]],!1)},"values");var _o=xo.Arguments=xo.Array;Tt("keys");Tt("values");Tt("entries");if(!Pp&&Ap&&_o.name!=="values")try{xp(_o,"name",{value:"values"})}catch(r){}});var No=n(function(){"use strict";var jp=K(),Np=fr(),jo=ft(),Mp=g(),Fp=Mp(function(){jo(1)});jp({target:"Object",stat:!0,forced:Fp},{keys:function(e){return jo(Np(e))}})});var Mo=n(function(){});var wt=n(function(Fo){"use strict";var kp=vt(),Bp=Jr(),Lp=Bp.concat("length","prototype");Fo.f=Object.getOwnPropertyNames||function(e){return kp(e,Lp)}});var Bo=n(function(qh,ko){"use strict";var Gp=w();ko.exports=Gp([].slice)});var Vo=n(function(Eh,Uo){"use strict";var Up=G(),Vp=X(),Lo=wt().f,$p=Bo(),Go=typeof window=="object"&&window&&Object.getOwnPropertyNames?Object.getOwnPropertyNames(window):[],Kp=function(r){try{return Lo(r)}catch(e){return $p(Go)}};Uo.exports.f=function(e){return Go&&Up(e)==="Window"?Kp(e):Lo(Vp(e))}});var Ko=n(function(gh,$o){"use strict";var Wp=g();$o.exports=Wp(function(){if(typeof ArrayBuffer=="function"){var r=new ArrayBuffer(8);Object.isExtensible(r)&&Object.defineProperty(r,"a",{value:8})}})});var Ho=n(function(hh,zo){"use strict";var zp=g(),Hp=m(),Xp=G(),Wo=Ko(),oe=Object.isExtensible,Yp=zp(function(){oe(1)});zo.exports=Yp||Wo?function(e){return!Hp(e)||Wo&&Xp(e)==="ArrayBuffer"?!1:oe?oe(e):!0}:oe});var Yo=n(function(Oh,Xo){"use strict";var Qp=g();Xo.exports=!Qp(function(){return Object.isExtensible(Object.preventExtensions({}))})});var Pt=n(function(bh,Zo){"use strict";var Jp=K(),Zp=w(),ry=pr(),ey=m(),mt=x(),ty=M().f,Qo=wt(),ay=Vo(),xt=Ho(),ny=lr(),iy=Yo(),Jo=!1,B=ny("meta"),oy=0,_t=function(r){ty(r,B,{value:{objectID:"O"+oy++,weakData:{}}})},uy=function(r,e){if(!ey(r))return typeof r=="symbol"?r:(typeof r=="string"?"S":"P")+r;if(!mt(r,B)){if(!xt(r))return"F";if(!e)return"E";_t(r)}return r[B].objectID},sy=function(r,e){if(!mt(r,B)){if(!xt(r))return!0;if(!e)return!1;_t(r)}return r[B].weakData},cy=function(r){return iy&&Jo&&xt(r)&&!mt(r,B)&&_t(r),r},vy=function(){fy.enable=function(){},Jo=!0;var r=Qo.f,e=Zp([].splice),t={};t[B]=1,r(t).length&&(Qo.f=function(a){for(var o=r(a),i=0,u=o.length;i<u;i++)if(o[i]===B){e(o,i,1);break}return o},Jp({target:"Object",stat:!0,forced:!0},{getOwnPropertyNames:ay.f}))},fy=Zo.exports={enable:vy,fastKey:uy,getWeakData:sy,onFreeze:cy};ry[B]=!0});var eu=n(function(Rh,ru){"use strict";var ly=N(),py=Z(),yy=ly("iterator"),dy=Array.prototype;ru.exports=function(r){return r!==void 0&&(py.Array===r||dy[yy]===r)}});var nu=n(function(Sh,au){"use strict";var qy=ar(),Ey=x(),tu=Z();au.exports=function(r){var e=qy(r);return e==="Arguments"&&(e="Array"),Ey(tu,e)?tu[e]:void 0}});var At=n(function(Ih,ou){"use strict";var iu=zr(),gy=H(),hy=nu(),Oy=N(),by=Oy("iterator");ou.exports=function(r){if(!gy(r))return iu(r,by)||iu(r,"@@iterator")||hy(r)}});var su=n(function(Th,uu){"use strict";var Ry=C(),Sy=b(),Iy=A(),Ty=Kr(),wy=At(),my=TypeError;uu.exports=function(r,e){var t=arguments.length<2?wy(r):e;if(Sy(t))return Iy(Ry(t,r));throw new my(Ty(r)+" is not iterable")}});var fu=n(function(wh,vu){"use strict";var xy=C(),cu=A(),_y=zr();vu.exports=function(r,e,t){var a,o;cu(r);try{if(a=_y(r,"return"),!a){if(e==="throw")throw t;return t}a=xy(a,r)}catch(i){o=!0,a=i}if(e==="throw")throw t;if(o)throw a;return cu(a),t}});var se=n(function(mh,du){"use strict";var Py=Er(),Ay=C(),Cy=A(),Dy=Kr(),jy=eu(),Ny=hr(),lu=cr(),My=su(),Fy=At(),pu=fu(),ky=TypeError,ue=function(r,e){this.stopped=r,this.result=e},yu=ue.prototype;du.exports=function(r,e,t){var a=t&&t.that,o=!!(t&&t.AS_ENTRIES),i=!!(t&&t.IS_RECORD),u=!!(t&&t.IS_ITERATOR),p=!!(t&&t.INTERRUPTED),y=Py(e,a),v,c,f,s,l,d,q,h=function(R){var Br=v;return v=void 0,Br&&pu(Br,"normal"),new ue(!0,R)},E=function(R){return o?(Cy(R),p?y(R[0],R[1],h):y(R[0],R[1])):p?y(R,h):y(R)};if(i)v=r.iterator;else if(u)v=r;else{if(c=Fy(r),!c)throw new ky(Dy(r)+" is not iterable");if(jy(c)){for(f=0,s=Ny(r);s>f;f++)if(l=E(r[f]),l&&lu(yu,l))return l;return new ue(!1)}v=My(r,c)}for(d=i?r.next:v.next;!(q=Ay(d,v)).done;){var P=q.value;try{l=E(P)}catch(R){if(v)pu(v,"throw",R);else throw R}if(typeof l=="object"&&l&&lu(yu,l))return l}return new ue(!1)}});var Tr=n(function(xh,qu){"use strict";var By=cr(),Ly=TypeError;qu.exports=function(r,e){if(By(e,r))return r;throw new Ly("Incorrect invocation")}});var gu=n(function(_h,Eu){"use strict";var Gy=G();Eu.exports=Array.isArray||function(e){return Gy(e)==="Array"}});var Ou=n(function(Ph,hu){"use strict";var Uy=w(),Vy=b(),Ct=vr(),$y=Uy(Function.toString);Vy(Ct.inspectSource)||(Ct.inspectSource=function(r){return $y(r)});hu.exports=Ct.inspectSource});var jt=n(function(Ah,Tu){"use strict";var Ky=w(),Wy=g(),bu=b(),zy=ar(),Hy=D(),Xy=Ou(),Ru=function(){},Su=Hy("Reflect","construct"),Dt=/^\s*(?:class|function)\b/,Yy=Ky(Dt.exec),Qy=!Dt.test(Ru),wr=function(e){if(!bu(e))return!1;try{return Su(Ru,[],e),!0}catch(t){return!1}},Iu=function(e){if(!bu(e))return!1;switch(zy(e)){case"AsyncFunction":case"GeneratorFunction":case"AsyncGeneratorFunction":return!1}try{return Qy||!!Yy(Dt,Xy(e))}catch(t){return!0}};Iu.sham=!0;Tu.exports=!Su||Wy(function(){var r;return wr(wr.call)||!wr(Object)||!wr(function(){r=!0})||r})?Iu:wr});var _u=n(function(Ch,xu){"use strict";var wu=gu(),Jy=jt(),Zy=m(),rd=N(),ed=rd("species"),mu=Array;xu.exports=function(r){var e;return wu(r)&&(e=r.constructor,Jy(e)&&(e===mu||wu(e.prototype))?e=void 0:Zy(e)&&(e=e[ed],e===null&&(e=void 0))),e===void 0?mu:e}});var Au=n(function(Dh,Pu){"use strict";var td=_u();Pu.exports=function(r,e){return new(td(r))(e===0?0:e)}});var Nt=n(function(jh,Cu){"use strict";var ad=T(),nd=M(),id=V();Cu.exports=function(r,e,t){ad?nd.f(r,e,id(0,t)):r[e]=t}});var Nu=n(function(Nh,ju){"use strict";var od=Er(),ud=Ce(),sd=fr(),cd=hr(),Du=Au(),Mt=Nt(),W=function(r){var e=r===1,t=r===2,a=r===3,o=r===4,i=r===6,u=r===7,p=r===5||i;return function(y,v,c){for(var f=sd(y),s=ud(f),l=cd(s),d=od(v,c),q=0,h=0,E=e?Du(y,l):t||u?Du(y,0):void 0,P,R;l>q;q++)if((p||q in s)&&(P=s[q],R=d(P,q,f),r))if(e)Mt(E,q,R);else if(R)switch(r){case 3:return!0;case 5:return P;case 6:return q;case 2:Mt(E,h++,P)}else switch(r){case 4:return!1;case 7:Mt(E,h++,P)}return i?-1:a||o?o:E}};ju.exports={forEach:W(0),map:W(1),filter:W(2),some:W(3),every:W(4),find:W(5),findIndex:W(6),filterReject:W(7)}});var Ft=n(function(Mh,Fu){"use strict";var vd=K(),fd=O(),ld=Pt(),pd=C(),yd=g(),dd=$(),qd=se(),Ed=Tr(),gd=b(),hd=m(),Od=H(),bd=Rr(),Rd=M().f,Sd=Nu().forEach,Id=T(),Mu=dr(),Td=Mu.set,wd=Mu.getterFor;Fu.exports=function(r,e,t){var a=r.indexOf("Map")!==-1,o=r.indexOf("Weak")!==-1,i=a?"set":"add",u=fd[r],p=u&&u.prototype,y={},v;if(!Id||!gd(u)||!(o||p.forEach&&!yd(function(){new u().entries().next()})))v=t.getConstructor(e,r,a,i),ld.enable();else{v=e(function(s,l){Td(Ed(s,c),{type:r,collection:new u}),Od(l)||qd(l,s[i],{that:s,AS_ENTRIES:a})});var c=v.prototype,f=wd(r);Sd(["add","clear","delete","forEach","get","has","set","keys","values","entries"],function(s){var l=s==="add"||s==="set";s in p&&!(o&&s==="clear")&&dd(c,s,function(d,q){var h=this,E=f(h).collection;if(!l&&o&&!hd(d))return s==="get"?void 0:!1;var P=E[s](s==="forEach"?function(R,Br){pd(d,q,R,Br,h)}:d===0?0:d,q);return l?h:P})}),o||Rd(c,"size",{configurable:!0,get:function(){return f(this).collection.size}})}return bd(v,r,!1,!0),y[r]=v,vd({global:!0,forced:!0},y),o||t.setStrong(v,r,a),v}});var ce=n(function(Fh,ku){"use strict";var md=M();ku.exports=function(r,e,t){return md.f(r,e,t)}});var Lu=n(function(kh,Bu){"use strict";var xd=br();Bu.exports=function(r,e,t){for(var a in e)t&&t.unsafe&&r[a]?r[a]=e[a]:xd(r,a,e[a],t);return r}});var Vu=n(function(Bh,Uu){"use strict";var _d=D(),Pd=ce(),Ad=N(),Cd=T(),Gu=Ad("species");Uu.exports=function(r){var e=_d(r);Cd&&e&&!e[Gu]&&Pd(e,Gu,{configurable:!0,get:function(){return this}})}});var Bt=n(function(Lh,Xu){"use strict";var $u=Or(),Dd=ce(),Ku=Lu(),jd=Er(),Nd=Tr(),Md=H(),Fd=se(),kd=St(),ve=It(),Bd=Vu(),mr=T(),Wu=Pt().fastKey,Hu=dr(),zu=Hu.set,kt=Hu.getterFor;Xu.exports={getConstructor:function(r,e,t,a){var o=r(function(v,c){Nd(v,i),zu(v,{type:e,index:$u(null),first:null,last:null,size:0}),mr||(v.size=0),Md(c)||Fd(c,v[a],{that:v,AS_ENTRIES:t})}),i=o.prototype,u=kt(e),p=function(v,c,f){var s=u(v),l=y(v,c),d,q;return l?l.value=f:(s.last=l={index:q=Wu(c,!0),key:c,value:f,previous:d=s.last,next:null,removed:!1},s.first||(s.first=l),d&&(d.next=l),mr?s.size++:v.size++,q!=="F"&&(s.index[q]=l)),v},y=function(v,c){var f=u(v),s=Wu(c),l;if(s!=="F")return f.index[s];for(l=f.first;l;l=l.next)if(l.key===c)return l};return Ku(i,{clear:function(){for(var c=this,f=u(c),s=f.first;s;)s.removed=!0,s.previous&&(s.previous=s.previous.next=null),s=s.next;f.first=f.last=null,f.index=$u(null),mr?f.size=0:c.size=0},delete:function(v){var c=this,f=u(c),s=y(c,v);if(s){var l=s.next,d=s.previous;delete f.index[s.index],s.removed=!0,d&&(d.next=l),l&&(l.previous=d),f.first===s&&(f.first=l),f.last===s&&(f.last=d),mr?f.size--:c.size--}return!!s},forEach:function(c){for(var f=u(this),s=jd(c,arguments.length>1?arguments[1]:void 0),l;l=l?l.next:f.first;)for(s(l.value,l.key,this);l&&l.removed;)l=l.previous},has:function(c){return!!y(this,c)}}),Ku(i,t?{get:function(c){var f=y(this,c);return f&&f.value},set:function(c,f){return p(this,c===0?0:c,f)}}:{add:function(c){return p(this,c=c===0?0:c,c)}}),mr&&Dd(i,"size",{configurable:!0,get:function(){return u(this).size}}),o},setStrong:function(r,e,t){var a=e+" Iterator",o=kt(e),i=kt(a);kd(r,e,function(u,p){zu(this,{type:a,target:u,state:o(u),kind:p,last:null})},function(){for(var u=i(this),p=u.kind,y=u.last;y&&y.removed;)y=y.previous;return!u.target||!(u.last=y=y?y.next:u.state.first)?(u.target=null,ve(void 0,!0)):ve(p==="keys"?y.key:p==="values"?y.value:[y.key,y.value],!1)},t?"entries":"values",!t,!0),Bd(e)}}});var Yu=n(function(){"use strict";var Ld=Ft(),Gd=Bt();Ld("Map",function(r){return function(){return r(this,arguments.length?arguments[0]:void 0)}},Gd)});var Qu=n(function(){"use strict";Yu()});var Ju=n(function(){"use strict";var Ud=Ft(),Vd=Bt();Ud("Set",function(r){return function(){return r(this,arguments.length?arguments[0]:void 0)}},Vd)});var Zu=n(function(){"use strict";Ju()});var Lt=n(function(Xh,rs){"use strict";var xr=O(),$d=Ge(),Kd=G(),fe=function(r){return $d.slice(0,r.length)===r};rs.exports=(function(){return fe("Bun/")?"BUN":fe("Cloudflare-Workers")?"CLOUDFLARE":fe("Deno/")?"DENO":fe("Node.js/")?"NODE":xr.Bun&&typeof Bun.version=="string"?"BUN":xr.Deno&&typeof Deno.version=="object"?"DENO":Kd(xr.process)==="process"?"NODE":xr.window&&xr.document?"BROWSER":"REST"})()});var ts=n(function(Yh,es){"use strict";var Wd=Lt();es.exports=Wd==="NODE"});var Gt=n(function(Qh,as){"use strict";var zd=O(),Hd=ts();as.exports=function(r){if(Hd){try{return zd.process.getBuiltinModule(r)}catch(e){}try{return Function('return require("'+r+'")')()}catch(e){}}}});var is=n(function(Jh,ns){"use strict";var Xd=ar(),Yd=String;ns.exports=function(r){if(Xd(r)==="Symbol")throw new TypeError("Cannot convert a Symbol value to a string");return Yd(r)}});var le=n(function(Zh,os){"use strict";var Qd=is();os.exports=function(r,e){return r===void 0?arguments.length<2?"":e:Qd(r)}});var cs=n(function(rO,ss){"use strict";var Jd=T(),Zd=g(),rq=A(),us=le(),pe=Error.prototype.toString,eq=Zd(function(){if(Jd){var r=Object.create(Object.defineProperty({},"name",{get:function(){return this===r}}));if(pe.call(r)!=="true")return!0}return pe.call({message:1,name:2})!=="2: 1"||pe.call({})!=="Error"});ss.exports=eq?function(){var e=rq(this),t=us(e.name,"Error"),a=us(e.message);return t?a?t+": "+a:t:a}:pe});var Ut=n(function(eO,vs){"use strict";vs.exports={IndexSizeError:{s:"INDEX_SIZE_ERR",c:1,m:1},DOMStringSizeError:{s:"DOMSTRING_SIZE_ERR",c:2,m:0},HierarchyRequestError:{s:"HIERARCHY_REQUEST_ERR",c:3,m:1},WrongDocumentError:{s:"WRONG_DOCUMENT_ERR",c:4,m:1},InvalidCharacterError:{s:"INVALID_CHARACTER_ERR",c:5,m:1},NoDataAllowedError:{s:"NO_DATA_ALLOWED_ERR",c:6,m:0},NoModificationAllowedError:{s:"NO_MODIFICATION_ALLOWED_ERR",c:7,m:1},NotFoundError:{s:"NOT_FOUND_ERR",c:8,m:1},NotSupportedError:{s:"NOT_SUPPORTED_ERR",c:9,m:1},InUseAttributeError:{s:"INUSE_ATTRIBUTE_ERR",c:10,m:1},InvalidStateError:{s:"INVALID_STATE_ERR",c:11,m:1},SyntaxError:{s:"SYNTAX_ERR",c:12,m:1},InvalidModificationError:{s:"INVALID_MODIFICATION_ERR",c:13,m:1},NamespaceError:{s:"NAMESPACE_ERR",c:14,m:1},InvalidAccessError:{s:"INVALID_ACCESS_ERR",c:15,m:1},ValidationError:{s:"VALIDATION_ERR",c:16,m:0},TypeMismatchError:{s:"TYPE_MISMATCH_ERR",c:17,m:1},SecurityError:{s:"SECURITY_ERR",c:18,m:1},NetworkError:{s:"NETWORK_ERR",c:19,m:1},AbortError:{s:"ABORT_ERR",c:20,m:1},URLMismatchError:{s:"URL_MISMATCH_ERR",c:21,m:1},QuotaExceededError:{s:"QUOTA_EXCEEDED_ERR",c:22,m:1},TimeoutError:{s:"TIMEOUT_ERR",c:23,m:1},InvalidNodeTypeError:{s:"INVALID_NODE_TYPE_ERR",c:24,m:1},DataCloneError:{s:"DATA_CLONE_ERR",c:25,m:1}}});var Vt=n(function(tO,ps){"use strict";var tq=w(),fs=Error,aq=tq("".replace),nq=(function(r){return String(new fs(r).stack)})("zxcasd"),ls=/\n\s*at [^:]*:[^\n]*/,iq=ls.test(nq);ps.exports=function(r,e){if(iq&&typeof r=="string"&&!fs.prepareStackTrace)for(;e--;)r=aq(r,ls,"");return r}});var Is=n(function(){"use strict";var oq=K(),qe=D(),uq=Gt(),Xt=g(),sq=Or(),Yt=V(),Ee=M().f,cq=br(),ye=ce(),de=x(),vq=Tr(),fq=A(),qs=cs(),ys=le(),nr=Ut(),lq=Vt(),Es=dr(),Qt=T(),gs=U(),ir="DOMException",Ht="DATA_CLONE_ERR",he=qe("Error"),L=qe(ir)||(function(){try{var r=qe("MessageChannel")||uq("worker_threads").MessageChannel;new r().port1.postMessage(new WeakMap)}catch(e){if(e.name===Ht&&e.code===25)return e.constructor}})(),pq=L&&L.prototype,hs=he.prototype,yq=Es.set,dq=Es.getterFor(ir),qq="stack"in new he(ir),Os=function(r){return de(nr,r)&&nr[r].m?nr[r].c:0},Jt=function(){vq(this,Pr);var e=arguments.length,t=ys(e<1?void 0:arguments[0]),a=ys(e<2?void 0:arguments[1],"Error"),o=Os(a);if(yq(this,{type:ir,name:a,message:t,code:o}),Qt||(this.name=a,this.message=t,this.code=o),qq){var i=new he(t);i.name=ir,Ee(this,"stack",Yt(1,lq(i.stack,1)))}},Pr=Jt.prototype=sq(hs),bs=function(r){return{enumerable:!0,configurable:!0,get:r}},$t=function(r){return bs(function(){return dq(this)[r]})};Qt&&(ye(Pr,"code",$t("code")),ye(Pr,"message",$t("message")),ye(Pr,"name",$t("name")));Ee(Pr,"constructor",Yt(1,Jt));var Oe=Xt(function(){return!(new L instanceof he)}),Rs=Oe||Xt(function(){return hs.toString!==qs||String(new L(1,2))!=="2: 1"}),Ss=Oe||Xt(function(){return new L(1,"DataCloneError").code!==25}),Eq=Oe||L[Ht]!==25||pq[Ht]!==25,ds=gs?Rs||Ss||Eq:Oe;oq({global:!0,constructor:!0,forced:ds},{DOMException:ds?Jt:L});var Ar=qe(ir),ge=Ar.prototype;Rs&&(gs||L===Ar)&&cq(ge,"toString",qs);Ss&&Qt&&L===Ar&&ye(ge,"code",bs(function(){return Os(fq(this).name)}));for(Kt in nr)de(nr,Kt)&&(Wt=nr[Kt],_r=Wt.s,zt=Yt(6,Wt.c),de(Ar,_r)||Ee(Ar,_r,zt),de(ge,_r)||Ee(ge,_r,zt));var Wt,_r,zt,Kt});var ms=n(function(iO,ws){"use strict";var gq=b(),hq=m(),Ts=bt();ws.exports=function(r,e,t){var a,o;return Ts&&gq(a=e.constructor)&&a!==t&&hq(o=a.prototype)&&o!==t.prototype&&Ts(r,o),r}});var js=n(function(){"use strict";var Oq=K(),bq=O(),oa=D(),na=V(),ia=M().f,xs=x(),Rq=Tr(),Sq=ms(),_s=le(),Zt=Ut(),Iq=Vt(),Tq=T(),Cs=U(),Dr="DOMException",Ds=oa("Error"),jr=oa(Dr),ua=function(){Rq(this,wq);var e=arguments.length,t=_s(e<1?void 0:arguments[0]),a=_s(e<2?void 0:arguments[1],"Error"),o=new jr(t,a),i=new Ds(t);return i.name=Dr,ia(o,"stack",na(1,Iq(i.stack,1))),Sq(o,this,ua),o},wq=ua.prototype=jr.prototype,mq="stack"in new Ds(Dr),xq="stack"in new jr(1,2),ra=jr&&Tq&&Object.getOwnPropertyDescriptor(bq,Dr),_q=!!ra&&!(ra.writable&&ra.configurable),Ps=mq&&!_q&&!xq;Oq({global:!0,constructor:!0,forced:Cs||Ps},{DOMException:Ps?ua:jr});var Cr=oa(Dr),As=Cr.prototype;if(As.constructor!==Cr){Cs||ia(As,"constructor",na(1,Cr));for(ea in Zt)xs(Zt,ea)&&(ta=Zt[ea],aa=ta.s,xs(Cr,aa)||ia(Cr,aa,na(6,ta.c)))}var ta,aa,ea});var Ms=n(function(){"use strict";var Pq=D(),Aq=Rr(),Ns="DOMException";Aq(Pq(Ns),Ns)});var ks=n(function(vO,Fs){"use strict";var Cq=TypeError;Fs.exports=function(r,e){if(r<e)throw new Cq("Not enough arguments");return r}});var Gs=n(function(fO,Ls){"use strict";var Dq=O(),jq=g(),Bs=Dq.RegExp,Nq=!jq(function(){var r=!0;try{Bs(".","d")}catch(y){r=!1}var e={},t="",a=r?"dgimsy":"gimsy",o=function(y,v){Object.defineProperty(e,y,{get:function(){return t+=v,!0}})},i={dotAll:"s",global:"g",ignoreCase:"i",multiline:"m",sticky:"y"};r&&(i.hasIndices="d");for(var u in i)o(u,i[u]);var p=Object.getOwnPropertyDescriptor(Bs.prototype,"flags").get.call(e);return p!==a||t!==a});Ls.exports={correct:Nq}});var Vs=n(function(lO,Us){"use strict";var Mq=A();Us.exports=function(){var r=Mq(this),e="";return r.hasIndices&&(e+="d"),r.global&&(e+="g"),r.ignoreCase&&(e+="i"),r.multiline&&(e+="m"),r.dotAll&&(e+="s"),r.unicode&&(e+="u"),r.unicodeSets&&(e+="v"),r.sticky&&(e+="y"),e}});var Ws=n(function(pO,Ks){"use strict";var Fq=C(),kq=x(),Bq=cr(),$s=Gs(),Lq=Vs(),Gq=RegExp.prototype;Ks.exports=$s.correct?function(r){return r.flags}:function(r){return!$s.correct&&Bq(Gq,r)&&!kq(r,"flags")?Fq(Lq,r):r.flags}});var sa=n(function(yO,zs){"use strict";zs.exports=function(r,e){return e===1?function(t,a){return t[r](a)}:function(t,a,o){return t[r](a,o)}}});var Ys=n(function(dO,Xs){"use strict";var Uq=D(),be=sa(),Hs=Uq("Map");Xs.exports={Map:Hs,set:be("set",2),get:be("get",1),has:be("has",1),remove:be("delete",1),proto:Hs.prototype}});var Zs=n(function(qO,Js){"use strict";var Vq=D(),ca=sa(),Qs=Vq("Set"),$q=Qs.prototype;Js.exports={Set:Qs,add:ca("add",1),has:ca("has",1),remove:ca("delete",1),proto:$q}});var ec=n(function(EO,rc){"use strict";var Kq=C();rc.exports=function(r,e,t){for(var a=t?r:r.iterator,o=r.next,i,u;!(i=Kq(o,a)).done;)if(u=e(i.value),u!==void 0)return u}});var ac=n(function(gO,tc){"use strict";var Wq=ec();tc.exports=function(r,e,t){return t?Wq(r.keys(),e,!0):r.forEach(e)}});var la=n(function(hO,ic){"use strict";var zq=O(),Hq=g(),va=Ve(),fa=Lt(),nc=zq.structuredClone;ic.exports=!!nc&&!Hq(function(){if(fa==="DENO"&&va>92||fa==="NODE"&&va>94||fa==="BROWSER"&&va>97)return!1;var r=new ArrayBuffer(8),e=nc(r,{transfer:[r]});return r.byteLength!==0||e.byteLength!==8})});var cc=n(function(OO,sc){"use strict";var qa=O(),Xq=Gt(),Yq=la(),Qq=qa.structuredClone,oc=qa.ArrayBuffer,Re=qa.MessageChannel,da=!1,pa,uc,Se,ya;if(Yq)da=function(r){Qq(r,{transfer:[r]})};else if(oc)try{Re||(pa=Xq("worker_threads"),pa&&(Re=pa.MessageChannel)),Re&&(uc=new Re,Se=new oc(2),ya=function(r){uc.port1.postMessage(null,[r])},Se.byteLength===2&&(ya(Se),Se.byteLength===0&&(da=ya)))}catch(r){}sc.exports=da});var fc=n(function(bO,vc){"use strict";var Jq=g(),Zq=V();vc.exports=!Jq(function(){var r=new Error("a");return"stack"in r?(Object.defineProperty(r,"stack",Zq(1,7)),r.stack!==7):!0})});var Rc=n(function(){"use strict";var rE=U(),eE=K(),I=O(),Mr=D(),kr=w(),Ra=g(),tE=lr(),or=b(),aE=jt(),nE=H(),xe=m(),iE=$r(),oE=se(),yc=A(),we=ar(),uE=x(),sE=Nt(),Ea=$(),Ie=hr(),cE=ks(),vE=Ws(),_e=Ys(),Sa=Zs(),fE=ac(),lc=cc(),lE=fc(),Ia=la(),Nr=I.Object,pE=I.Array,dc=I.Date,qc=I.Error,yE=I.TypeError,dE=I.PerformanceMark,J=Mr("DOMException"),Oa=_e.Map,Ta=_e.has,Ec=_e.get,me=_e.set,gc=Sa.Set,hc=Sa.add,qE=Sa.has,EE=Mr("Object","keys"),gE=kr([].push),hE=kr((!0).valueOf),OE=kr(1.1.valueOf),bE=kr("".valueOf),RE=kr(dc.prototype.getTime),ba=tE("structuredClone"),Fr="DataCloneError",Te="Transferring",Oc=function(r){return!Ra(function(){var e=new I.Set([7]),t=r(e),a=r(Nr(7));return t===e||!t.has(7)||!xe(a)||+a!=7})&&r},pc=function(r,e){return!Ra(function(){var t=new e,a=r({a:t,b:t});return!(a&&a.a===a.b&&a.a instanceof e&&a.a.stack===t.stack)})},SE=function(r){return!Ra(function(){var e=r(new I.AggregateError([1],ba,{cause:3}));return e.name!=="AggregateError"||e.errors[0]!==1||e.message!==ba||e.cause!==3})},Q=I.structuredClone,IE=rE||!pc(Q,qc)||!pc(Q,J)||!SE(Q),TE=!Q&&Oc(function(r){return new dE(ba,{detail:r}).detail}),z=Oc(Q)||TE,ga=function(r){throw new J("Uncloneable type: "+r,Fr)},_=function(r,e){throw new J((e||"Cloning")+" of "+r+" cannot be properly polyfilled in this engine",Fr)},ha=function(r,e){return z||_(e),z(r)},wE=function(){var r;try{r=new I.DataTransfer}catch(e){try{r=new I.ClipboardEvent("").clipboardData}catch(t){}}return r&&r.items&&r.files?r:null},bc=function(r,e,t){if(Ta(e,r))return Ec(e,r);var a=t||we(r),o,i,u,p,y,v;if(a==="SharedArrayBuffer")z?o=z(r):o=r;else{var c=I.DataView;!c&&!or(r.slice)&&_("ArrayBuffer");try{if(or(r.slice)&&!r.resizable)o=r.slice(0);else for(i=r.byteLength,u=("maxByteLength"in r)?{maxByteLength:r.maxByteLength}:void 0,o=new ArrayBuffer(i,u),p=new c(r),y=new c(o),v=0;v<i;v++)y.setUint8(v,p.getUint8(v))}catch(f){throw new J("ArrayBuffer is detached",Fr)}}return me(e,r,o),o},mE=function(r,e,t,a,o){var i=I[e];return xe(i)||_(e),new i(bc(r.buffer,o),t,a)},S=function(r,e){if(iE(r)&&ga("Symbol"),!xe(r))return r;if(e){if(Ta(e,r))return Ec(e,r)}else e=new Oa;var t=we(r),a,o,i,u,p,y,v,c;switch(t){case"Array":i=pE(Ie(r));break;case"Object":i={};break;case"Map":i=new Oa;break;case"Set":i=new gc;break;case"RegExp":i=new RegExp(r.source,vE(r));break;case"Error":switch(o=r.name,o){case"AggregateError":i=new(Mr(o))([]);break;case"EvalError":case"RangeError":case"ReferenceError":case"SuppressedError":case"SyntaxError":case"TypeError":case"URIError":i=new(Mr(o));break;case"CompileError":case"LinkError":case"RuntimeError":i=new(Mr("WebAssembly",o));break;default:i=new qc}break;case"DOMException":i=new J(r.message,r.name);break;case"ArrayBuffer":case"SharedArrayBuffer":i=bc(r,e,t);break;case"DataView":case"Int8Array":case"Uint8Array":case"Uint8ClampedArray":case"Int16Array":case"Uint16Array":case"Int32Array":case"Uint32Array":case"Float16Array":case"Float32Array":case"Float64Array":case"BigInt64Array":case"BigUint64Array":y=t==="DataView"?r.byteLength:r.length,i=mE(r,t,r.byteOffset,y,e);break;case"DOMQuad":try{i=new DOMQuad(S(r.p1,e),S(r.p2,e),S(r.p3,e),S(r.p4,e))}catch(f){i=ha(r,t)}break;case"File":if(z)try{i=z(r),we(i)!==t&&(i=void 0)}catch(f){}if(!i)try{i=new File([r],r.name,r)}catch(f){}i||_(t);break;case"FileList":if(u=wE(),u){for(p=0,y=Ie(r);p<y;p++)u.items.add(S(r[p],e));i=u.files}else i=ha(r,t);break;case"ImageData":try{i=new ImageData(S(r.data,e),r.width,r.height,{colorSpace:r.colorSpace})}catch(f){i=ha(r,t)}break;default:if(z)i=z(r);else switch(t){case"BigInt":i=Nr(r.valueOf());break;case"Boolean":i=Nr(hE(r));break;case"Number":i=Nr(OE(r));break;case"String":i=Nr(bE(r));break;case"Date":i=new dc(RE(r));break;case"Blob":try{i=r.slice(0,r.size,r.type)}catch(f){_(t)}break;case"DOMPoint":case"DOMPointReadOnly":a=I[t];try{i=a.fromPoint?a.fromPoint(r):new a(r.x,r.y,r.z,r.w)}catch(f){_(t)}break;case"DOMRect":case"DOMRectReadOnly":a=I[t];try{i=a.fromRect?a.fromRect(r):new a(r.x,r.y,r.width,r.height)}catch(f){_(t)}break;case"DOMMatrix":case"DOMMatrixReadOnly":a=I[t];try{i=a.fromMatrix?a.fromMatrix(r):new a(r)}catch(f){_(t)}break;case"AudioData":case"VideoFrame":or(r.clone)||_(t);try{i=r.clone()}catch(f){ga(t)}break;case"CropTarget":case"CryptoKey":case"FileSystemDirectoryHandle":case"FileSystemFileHandle":case"FileSystemHandle":case"GPUCompilationInfo":case"GPUCompilationMessage":case"ImageBitmap":case"RTCCertificate":case"WebAssembly.Module":_(t);default:ga(t)}}switch(me(e,r,i),t){case"Array":case"Object":for(v=EE(r),p=0,y=Ie(v);p<y;p++)c=v[p],sE(i,c,S(r[c],e));break;case"Map":r.forEach(function(f,s){me(i,S(s,e),S(f,e))});break;case"Set":r.forEach(function(f){hc(i,S(f,e))});break;case"Error":Ea(i,"message",S(r.message,e)),uE(r,"cause")&&Ea(i,"cause",S(r.cause,e)),o==="AggregateError"?i.errors=S(r.errors,e):o==="SuppressedError"&&(i.error=S(r.error,e),i.suppressed=S(r.suppressed,e));case"DOMException":lE&&Ea(i,"stack",S(r.stack,e))}return i},xE=function(r,e){if(!xe(r))throw new yE("Transfer option cannot be converted to a sequence");var t=[];oE(r,function(s){gE(t,yc(s))});for(var a=0,o=Ie(t),i=new gc,u,p,y,v,c,f;a<o;){if(u=t[a++],p=we(u),v=void 0,p==="ArrayBuffer"?qE(i,u):Ta(e,u))throw new J("Duplicate transferable",Fr);if(p==="ArrayBuffer"){hc(i,u);continue}if(Ia)v=Q(u,{transfer:[u]});else switch(p){case"ImageBitmap":y=I.OffscreenCanvas,aE(y)||_(p,Te);try{c=new y(u.width,u.height),f=c.getContext("bitmaprenderer"),f.transferFromImageBitmap(u),v=c.transferToImageBitmap()}catch(s){}break;case"AudioData":case"VideoFrame":(!or(u.clone)||!or(u.close))&&_(p,Te);try{v=u.clone(),u.close()}catch(s){}break;case"MediaSourceHandle":case"MessagePort":case"MIDIAccess":case"OffscreenCanvas":case"ReadableStream":case"RTCDataChannel":case"TransformStream":case"WebTransportReceiveStream":case"WebTransportSendStream":case"WritableStream":_(p,Te)}if(v===void 0)throw new J("This object cannot be transferred: "+p,Fr);me(e,u,v)}return i},_E=function(r){fE(r,function(e){Ia?Q(e,{transfer:[e]}):or(e.transfer)?e.transfer():lc?lc(e):_("ArrayBuffer",Te)})};eE({global:!0,enumerable:!0,sham:!Ia,forced:IE},{structuredClone:function(e){var t=cE(arguments.length,1)>1&&!nE(arguments[1])?yc(arguments[1]):void 0,a=t?t.transfer:void 0,o,i;a!==void 0&&(o=new Oa,i=xE(a,o));var u=S(e,o);return i&&_E(i),u}})});var Ic=n(function(IO,Sc){"use strict";wa();Do();No();Mo();Qu();Zu();Is();js();Ms();Rc();var PE=Ur();Sc.exports=PE.structuredClone});var wc=n(function(TO,Tc){"use strict";var AE=Ic();Tc.exports=AE});var CE=n(function(){typeof window.structuredClone!="function"&&(window.structuredClone=wc())});CE();})();
+</script>
+<script>/* Only the independent announcement acknowledgement is persisted. */
+(function () {
+  var acknowledgementKey = 'ear-training:release-notice-ack';
+  var release = 'v1-2026-10-21-maintenance';
+  var panel = document.getElementById('app-release-notice');
+  var startup = document.getElementById('app-startup');
+  var root = document.getElementById('root');
+  var dismissed = false;
+  try {
+    if (window.localStorage.getItem(acknowledgementKey) === release) return;
+  } catch (_) {
+    // Storage restrictions must not prevent opening or dismissing the announcement.
+  }
+
+  function inspect() {
+    var heading = root.querySelector('h1');
+    var checkingMicrophone = Array.prototype.some.call(
+      root.querySelectorAll('button:disabled'),
+      function (button) {
+        return button.textContent.trim() === '开始麦克风检测';
+      }
+    );
+    panel.hidden =
+      dismissed ||
+      !startup.hidden ||
+      !root.firstElementChild ||
+      !root.querySelector('.app-shell > .app-header') ||
+      !!root.querySelector(
+        '.onboarding, .settings-panel, .workbench, .recording-progress, [role="alert"]'
+      ) ||
+      checkingMicrophone ||
+      !!(heading && heading.textContent.trim() === '暂时无法打开本地训练');
+  }
+
+  var observer = new MutationObserver(inspect);
+  observer.observe(startup, { attributes: true, attributeFilter: ['hidden'] });
+  observer.observe(root, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ['class', 'disabled']
+  });
+
+  function dismiss(remember) {
+    if (dismissed) return;
+    dismissed = true;
+    panel.hidden = true;
+    observer.disconnect();
+    if (remember) {
+      try {
+        window.localStorage.setItem(acknowledgementKey, release);
+      } catch (_) {
+        /* This visit stays dismissed. */
+      }
+    }
+  }
+  document.getElementById('app-release-ack').addEventListener('click', function () {
+    dismiss(true);
+  });
+  document.getElementById('app-release-later').addEventListener('click', function () {
+    dismiss(false);
+  });
+  inspect();
+})();
+</script>
+<script>(function () {
+  // Adapt the frozen V1's existing preview/click callbacks, without changing its bundles or data.
+  var selector = '.notation-answer .notation-interactive[role="button"]';
+  var active = null;
+  var contacts = {};
+  var lastTouch = null;
+  var forwarding = false;
+
+  function isTouch(event) {
+    return event.pointerType === 'touch' || event.pointerType === 'pen';
+  }
+  function staff(target) {
+    return target && target.closest ? target.closest(selector) : null;
+  }
+  function writable(host) {
+    return (
+      host &&
+      host.isConnected &&
+      host.matches(selector) &&
+      !host.closest('fieldset[disabled]') &&
+      (host.getAttribute('aria-label') || '').indexOf('擦除') < 0
+    );
+  }
+  function inside(host, event) {
+    var svg = host.querySelector('svg');
+    if (!svg) return false;
+    var score = svg.getBoundingClientRect();
+    var visible = host.getBoundingClientRect();
+    return (
+      score.width > 0 &&
+      score.height > 0 &&
+      event.clientX >= Math.max(score.left, visible.left) &&
+      event.clientX <= Math.min(score.right, visible.right) &&
+      event.clientY >= Math.max(score.top, visible.top) &&
+      event.clientY <= Math.min(score.bottom, visible.bottom)
+    );
+  }
+  function stop(event) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+  function dispatch(host, type, event) {
+    var forwarded = new MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      detail: 1,
+      clientX: event ? event.clientX : 0,
+      clientY: event ? event.clientY : 0,
+      relatedTarget: null
+    });
+    forwarding = true;
+    try {
+      host.dispatchEvent(forwarded);
+    } finally {
+      forwarding = false;
+    }
+  }
+  function clear(host) {
+    // React derives onPointerLeave from pointerout, not a native pointerleave event.
+    if (host.isConnected) dispatch(host, 'pointerout');
+  }
+  function finish() {
+    if (!active) return;
+    var previous = active;
+    active = null;
+    lastTouch = { host: previous.host, time: Date.now() };
+    try {
+      if (previous.host.hasPointerCapture && previous.host.hasPointerCapture(previous.id))
+        previous.host.releasePointerCapture(previous.id);
+    } catch (_) {
+      /* The browser may already have cancelled capture. */
+    }
+    clear(previous.host);
+  }
+
+  document.addEventListener(
+    'pointerdown',
+    function (event) {
+      if (forwarding) return;
+      if (!isTouch(event)) {
+        lastTouch = null;
+        finish();
+        lastTouch = null;
+        return;
+      }
+      contacts[event.pointerId] = true;
+      var host = staff(event.target);
+      if (Object.keys(contacts).length > 1) {
+        finish();
+        if (writable(host)) {
+          lastTouch = { host: host, time: Date.now() };
+          stop(event);
+        }
+        return;
+      }
+      // Suppress only the gesture we own, never a subsequent erase or ordinary tap.
+      lastTouch = null;
+      if (!writable(host)) return;
+      stop(event);
+      lastTouch = { host: host, time: Date.now() };
+      if (!inside(host, event)) return;
+      active = { host: host, id: event.pointerId };
+      host.setAttribute('data-touch-note-input', 'true');
+      try {
+        host.setPointerCapture(event.pointerId);
+      } catch (_) {
+        // Document listeners still handle release/cancel when capture is unavailable.
+      }
+      dispatch(host, 'pointermove', event);
+    },
+    true
+  );
+
+  document.addEventListener(
+    'pointermove',
+    function (event) {
+      if (forwarding || !isTouch(event)) return;
+      if (!active || active.id !== event.pointerId) {
+        // A page swipe that started outside the score must retain its scrolling default.
+        if (writable(staff(event.target))) event.stopImmediatePropagation();
+        return;
+      }
+      if (!writable(active.host)) {
+        stop(event);
+        finish();
+        return;
+      }
+      if (!inside(active.host, event)) {
+        stop(event);
+        clear(active.host);
+        return;
+      }
+      // Real captured moves already reach the original React handler on the stable div.
+      if (!active.host.contains(event.target)) {
+        stop(event);
+        dispatch(active.host, 'pointermove', event);
+      }
+    },
+    true
+  );
+
+  document.addEventListener(
+    'pointerup',
+    function (event) {
+      if (forwarding || !isTouch(event)) return;
+      delete contacts[event.pointerId];
+      if (lastTouch) lastTouch.time = Date.now();
+      if (!active || active.id !== event.pointerId) {
+        var target = staff(event.target);
+        if (writable(target)) lastTouch = { host: target, time: Date.now() };
+        return;
+      }
+      stop(event);
+      var host = active.host;
+      var commit = writable(host) && inside(host, event);
+      finish();
+      if (commit) dispatch(host, 'click', event);
+    },
+    true
+  );
+
+  document.addEventListener(
+    'pointercancel',
+    function (event) {
+      delete contacts[event.pointerId];
+      if (active && active.id === event.pointerId) finish();
+    },
+    true
+  );
+  document.addEventListener(
+    'lostpointercapture',
+    function (event) {
+      if (active && active.id === event.pointerId) finish();
+    },
+    true
+  );
+  document.addEventListener(
+    'click',
+    function (event) {
+      if (forwarding || !lastTouch || Date.now() - lastTouch.time > 900) return;
+      if (event.detail === 0 && !isTouch(event)) return;
+      if (lastTouch.host.contains(event.target)) stop(event);
+    },
+    true
+  );
+  function cancelAll() {
+    finish();
+    contacts = {};
+  }
+  window.addEventListener('blur', cancelAll);
+  window.addEventListener('pagehide', cancelAll);
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) cancelAll();
+  });
+})();
+</script>
+<link id="app-styles" rel="stylesheet" crossorigin href="/assets/index-Foawl69t.css">
+<style id="app-responsive">/* Layout-only additions for the frozen V1 build. */
+body {
+  min-width: 0;
+}
+
+button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.app-heading,
+.app-heading > div,
+.workbench .app-header > div,
+.workbench .app-header > h1,
+.workbench .workbench-header > h1,
+.theme-label {
+  min-width: 0;
+}
+
+.workbench .app-header,
+.workbench .workbench-header {
+  flex-wrap: wrap;
+}
+
+.actions > *,
+.rhythm-controls > *,
+.training-settings,
+.training-launcher .training-task-list > button {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.actions label > input,
+.actions label > select {
+  max-width: 100%;
+}
+
+.training-launcher .training-task-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.module-picker label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 0.5rem;
+}
+
+@media (max-width: 480px) {
+  .workbench .workbench-playback > button {
+    flex: 1 1 auto;
+  }
+}
+</style>
+<script id="app-entry" type="module" crossorigin src="/assets/index-CmSp-IgA.js"></script>
+  </body>
+</html>
